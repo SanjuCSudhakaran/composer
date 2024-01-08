@@ -21,6 +21,7 @@ from composer.trainer.mosaic_fsdp import patch_pytorch
 from composer.trainer.mosaic_fsdp_utils import (BACKWARD_PREFETCH_MAP, SHARDING_MAP, _set_custom_fsdp_module_kwargs,
                                                 get_cpu_offload, get_mixed_precision)
 from composer.utils import StringEnum, dist, ensure_tuple, using_torch_2
+from composer.utils.device import is_hpu_installed
 
 __all__ = ['DDPSyncStrategy', 'ddp_sync_context', 'prepare_ddp_module', 'prepare_fsdp_module']
 
@@ -560,6 +561,11 @@ def prepare_fsdp_module(
 
                     _auto_wrap_policy = _auto_wrap_policy_old
 
+            if is_hpu_installed:
+                device_id = f'hpu:{str(torch.hpu.current_device())}'
+            else:
+                device_id = torch.cuda.current_device()
+
             fsdp_obj = FullyShardedDataParallel(
                 obj,
                 process_group=process_group,
@@ -570,7 +576,7 @@ def prepare_fsdp_module(
                 backward_prefetch=backward_prefetch,
                 ignored_modules=ignored_modules,
                 param_init_fn=_param_init_fn,
-                device_id=torch.cuda.current_device(),
+                device_id=device_id,
                 sync_module_states=sync_module_states,
                 forward_prefetch=forward_prefetch,
                 limit_all_gathers=limit_all_gathers,
